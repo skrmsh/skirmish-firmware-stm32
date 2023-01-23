@@ -52,9 +52,9 @@ void setup() {
 
   // Set pin modes
   pinMode(PIN_IR_IN, INPUT);
-  pinMode(PIN_MCFG0, INPUT);
-  pinMode(PIN_MCFG1, INPUT);
-  pinMode(PIN_MCFG2, INPUT);
+  pinMode(PIN_MCFG0, INPUT_PULLUP);
+  pinMode(PIN_MCFG1, INPUT_PULLUP);
+  pinMode(PIN_MCFG2, INPUT_PULLUP);
   pinMode(PIN_ESP_IRQ, OUTPUT);
   digitalWrite(PIN_ESP_IRQ, HIGH);
 
@@ -66,7 +66,7 @@ void setup() {
   pixels.show();   // Send the updated pixel colors to the hardware.
 
   // Read Module Config from IO
-  mcfg = (digitalRead(PIN_MCFG0) << 2) | (digitalRead(PIN_MCFG1) << 1) | digitalRead(PIN_MCFG0);
+  mcfg = (!digitalRead(PIN_MCFG2) << 2) | (!digitalRead(PIN_MCFG1) << 1) | !digitalRead(PIN_MCFG0);
   // Calculate the I2C address
   i2cAddr = I2C_ADDR_OFFSET | mcfg;
 
