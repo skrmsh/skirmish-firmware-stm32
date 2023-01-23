@@ -68,7 +68,7 @@ void setup() {
   // Read Module Config from IO
   mcfg = (digitalRead(PIN_MCFG0) << 2) | (digitalRead(PIN_MCFG1) << 1) | digitalRead(PIN_MCFG0);
   // Calculate the I2C address
-  i2cAddr = I2C_ADDR_OFFSET;// | mcfg;
+  i2cAddr = I2C_ADDR_OFFSET | mcfg;
 
   // Initing the Wire communication
   Wire.setSCL(PIN_I2C_SCL);
