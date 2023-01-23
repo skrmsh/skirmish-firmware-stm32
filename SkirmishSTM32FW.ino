@@ -172,6 +172,10 @@ void requestEvent() {
   i2cPacket[1] = (irRecvVal >> 16) & 0xff;
   i2cPacket[0] = (irRecvVal >> 24) & 0xff;
   Wire.write(i2cPacket, 4);
+
+  // Resetting received IR val -> next time the shot data
+  // is requested it will return 0
+  irRecvVal = 0;
 }
 
 
