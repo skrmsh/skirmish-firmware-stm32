@@ -52,9 +52,9 @@ void setup() {
 
   // Set pin modes
   pinMode(PIN_IR_IN, INPUT);
-  pinMode(PIN_MCFG0, INPUT);
-  pinMode(PIN_MCFG1, INPUT);
-  pinMode(PIN_MCFG2, INPUT);
+  pinMode(PIN_MCFG0, INPUT_PULLUP);
+  pinMode(PIN_MCFG1, INPUT_PULLUP);
+  pinMode(PIN_MCFG2, INPUT_PULLUP);
   pinMode(PIN_ESP_IRQ, OUTPUT);
   digitalWrite(PIN_ESP_IRQ, HIGH);
 
