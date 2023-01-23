@@ -8,10 +8,22 @@
 #define PIN_ESP_IRQ PA7
 #define LED_COUNT 8
 
+// MCFG pins (used to set this controllers i2c address)
+// The solder jumpers should be configured with one of
+// this values:
+// 000 - Phaser
+// 001 - Breast
+// 010 - Back
+// 011 - Shoulder Left
+// 100 - Shoulder Right
+// 101 - Head
+// 110 - Hitpoint
+// 111 - UNDEFINED
 #define PIN_MCFG0 PA4
 #define PIN_MCFG1 PA5
 #define PIN_MCFG2 PA6
 
+// I2C Pins
 #define PIN_I2C_SDA PA12
 #define PIN_I2C_SCL PA11
 
@@ -63,7 +75,7 @@ void setup() {
   for(int i=0; i<LED_COUNT; i++) { // For each pixel...
     pixels.setPixelColor(i, pixels.Color(1, 1, 1));
   }
-  pixels.show();   // Send the updated pixel colors to the hardware.
+  pixels.show(); // Send the updated pixel colors to the hardware.
 
   // Read Module Config from IO
   mcfg = (!digitalRead(PIN_MCFG2) << 2) | (!digitalRead(PIN_MCFG1) << 1) | !digitalRead(PIN_MCFG0);
@@ -166,6 +178,9 @@ void loop() {
 
 uint8_t i2cPacket[4];
 
+/**
+ * This function writes the last received ir packet to the i2c main controller
+*/
 void requestEvent() {
   i2cPacket[3] = irRecvVal & 0xff;
   i2cPacket[2] = (irRecvVal >> 8) & 0xff;
