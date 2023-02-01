@@ -12,7 +12,7 @@
 // The solder jumpers should be configured with one of
 // this values:
 // 000 - Phaser
-// 001 - Breast
+// 001 - Chest
 // 010 - Back
 // 011 - Shoulder Left
 // 100 - Shoulder Right
