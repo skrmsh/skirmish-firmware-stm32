@@ -68,7 +68,6 @@ void setup() {
   pinMode(PIN_MCFG1, INPUT_PULLUP);
   pinMode(PIN_MCFG2, INPUT_PULLUP);
   pinMode(PIN_ESP_IRQ, OUTPUT);
-  digitalWrite(PIN_ESP_IRQ, HIGH);
 
   // Initialising WS2812 leds
   pixels.begin();
@@ -95,9 +94,12 @@ void setup() {
 }
 
 void requestInterrupt() {
+  // Mocking an open collector output by setting the pin state
+  // to input after using it
+  pinMode(PIN_ESP_IRQ, OUTPUT);
   digitalWrite(PIN_ESP_IRQ, LOW);
   delay(10);
-  digitalWrite(PIN_ESP_IRQ, HIGH);
+  pinMode(PIN_ESP_IRQ, INPUT);
 }
 
 unsigned long lastBlinkTime = 0;
