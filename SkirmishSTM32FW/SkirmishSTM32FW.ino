@@ -12,14 +12,15 @@
 // MCFG pins (used to set this controllers i2c address)
 // The solder jumpers should be configured with one of
 // this values:
-// 000 - Phaser
-// 001 - Chest
-// 010 - Back
-// 011 - Shoulder Left
-// 100 - Shoulder Right
-// 101 - Head
-// 110 - Hitpoint
-// 111 - UNDEFINED
+#define MCFG_PHASER 0b000
+#define MCFG_CHEST 0b001
+#define MCFG_BACK 0b010
+#define MCFG_SH_L 0b011
+#define MCFG_SH_R 0b100
+#define MCFG_HEAD 0b101
+#define MCFG_HP 0b110
+#define MCFG_UNDEF 0b111
+
 #define PIN_MCFG0 PA4
 #define PIN_MCFG1 PA5
 #define PIN_MCFG2 PA6
@@ -66,7 +67,6 @@ void setup() {
     pinMode(PIN_MCFG0, INPUT_PULLUP);
     pinMode(PIN_MCFG1, INPUT_PULLUP);
     pinMode(PIN_MCFG2, INPUT_PULLUP);
-    pinMode(PIN_ESP_IRQ, OUTPUT);
 
     // Initialising WS2812 leds
     pixels.begin();
@@ -81,6 +81,14 @@ void setup() {
     // Calculate the I2C address
     i2cAddr = I2C_ADDR_OFFSET | mcfg;
 
+    // IRQ Pin mode depending on phaser / vest hitpoint
+    if (mcfg == MCFG_PHASER) {
+        pinMode(PIN_ESP_IRQ, OUTPUT);
+        digitalWrite(PIN_ESP_IRQ, HIGH);
+    } else {
+        pinMode(PIN_ESP_IRQ, INPUT);  // Open-Collector mock
+    }
+
     // Initing the Wire communication
     Wire.setSCL(PIN_I2C_SCL);
     Wire.setSDA(PIN_I2C_SDA);
@@ -93,12 +101,21 @@ void setup() {
 }
 
 void requestInterrupt() {
-    // Mocking an open collector output by setting the pin state
-    // to input after using it
-    pinMode(PIN_ESP_IRQ, OUTPUT);
-    digitalWrite(PIN_ESP_IRQ, LOW);
-    delay(10);
-    pinMode(PIN_ESP_IRQ, INPUT);
+    // Phaser:
+    //  Always set to high or low (irq on falling edge)
+    // Other modules:
+    //  Set to low or input (irq on falling edge, but requires an external
+    //  pull-up resistor)
+    if (mcfg == MCFG_PHASER) {
+        digitalWrite(PIN_ESP_IRQ, LOW);
+        delay(10);
+        digitalWrite(PIN_ESP_IRQ, HIGH);
+    } else {
+        pinMode(PIN_ESP_IRQ, OUTPUT);
+        digitalWrite(PIN_ESP_IRQ, LOW);
+        delay(10);
+        pinMode(PIN_ESP_IRQ, INPUT);
+    }
 }
 
 unsigned long lastBlinkTime = 0;
