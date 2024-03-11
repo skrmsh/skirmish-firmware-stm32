@@ -1,5 +1,6 @@
 #include <Adafruit_NeoPixel.h>
 #include <Wire.h>
+#include <math.h>
 
 #include <IRremote.hpp>
 
@@ -35,6 +36,7 @@
 #define HP_CMD_SELECT_ANIM 0x01
 #define HP_CMD_SET_ANIM_SPEED 0x02
 #define HP_CMD_SET_COLOR 0x03
+#define HP_CMD_TIMESYNC 0x04
 
 // Animations
 #define ANIM_SOLID 0
@@ -93,7 +95,7 @@ void setup() {
     Wire.setSCL(PIN_I2C_SCL);
     Wire.setSDA(PIN_I2C_SDA);
     Wire.setClock(100000);
-    Wire.begin(i2cAddr);
+    Wire.begin(i2cAddr, true);
     Wire.onRequest(requestEvent);
     Wire.onReceive(receiveEvent);
 
@@ -129,6 +131,28 @@ uint8_t pid;
 uint16_t sid;
 uint8_t checksum;
 
+/*
+Calculate the CRC8 sum from a 24-Bit integer
+*/
+uint8_t calculateCRC8(uint32_t data) {
+    uint8_t crc = 0xff;
+    size_t i, j;
+    for (i = 0; i < 3; i++) {
+        crc ^= ((data >> (i * 8)) & 0xff);
+        for (j = 0; j < 8; j++) {
+            if ((crc & 0x80) != 0) {
+                crc = (uint8_t)((crc << 1) ^ 0x31);
+            } else {
+                crc <<= 1;
+            }
+        }
+    }
+    return crc;
+}
+
+uint32_t now;
+int32_t timeOffset = 0;
+
 void loop() {
     // Infrared receiver
     if (irrecv.decode(&results)) {
@@ -138,9 +162,12 @@ void loop() {
         pid = (irRecvVal >> 16) & 0xff;
         checksum = (irRecvVal >> 24) & 0xff;
 
-        if (checksum == (pid << 16 | sid) % 0xff) requestInterrupt();
+        if (checksum == calculateCRC8(pid << 16 | sid)) { requestInterrupt(); }
+        else { irRecvVal = 0; }
     }
     irrecv.resume();
+
+    now = millis() + timeOffset;
 
     // LED animations
     if (anim == ANIM_SOLID) {
@@ -150,9 +177,9 @@ void loop() {
     }
 
     else if (anim == ANIM_BLINK) {
-        if (millis() - lastBlinkTime > (speed * 10)) {
+        if (now - lastBlinkTime > (speed * 10)) {
             blinkState = 1 - blinkState;
-            lastBlinkTime = millis();
+            lastBlinkTime = now;
 
             for (int i = 0; i < LED_COUNT; i++) {  // For each pixel...
                 pixels.setPixelColor(
@@ -163,8 +190,8 @@ void loop() {
     }
 
     else if (anim == ANIM_ROTATE) {
-        if (millis() - lastBlinkTime > (speed * 10)) {
-            lastBlinkTime = millis();
+        if (now - lastBlinkTime > (speed * 10)) {
+            lastBlinkTime = now;
             pixels.setPixelColor(rotatePixel, pixels.Color(0, 0, 0));
             rotatePixel = (rotatePixel + 1) % LED_COUNT;
             pixels.setPixelColor(rotatePixel, pixels.Color(r, g, b));
@@ -172,8 +199,8 @@ void loop() {
     }
 
     else if (anim == ANIM_BREATHE) {
-        if (millis() - lastBlinkTime > speed) {
-            lastBlinkTime = millis();
+        if (now - lastBlinkTime > speed) {
+            lastBlinkTime = now;
             breatheFactor += breatheDirection;
             if (breatheFactor >= 1) {
                 breatheFactor = 1.0;
@@ -216,6 +243,7 @@ void requestEvent() {
 uint8_t _r = 0;  // red color
 uint8_t _g = 0;  // green color
 uint8_t _b = 0;  // blue color
+uint32_t _syncTime = 0;
 
 void receiveEvent(int bytes) {
     // This function is called when there is new I2C data
@@ -226,7 +254,7 @@ void receiveEvent(int bytes) {
 
         if (selectedCmd == 0) {          // when no command is selected
             selectedCmd = incomingByte;  // the incoming byte is the new command
-            if (selectedCmd < 1 || selectedCmd > HP_CMD_SET_COLOR)
+            if (selectedCmd < 1 || selectedCmd > HP_CMD_TIMESYNC)
                 selectedCmd = 0;
             paramIndex = 0;
         }
@@ -237,7 +265,12 @@ void receiveEvent(int bytes) {
             Param: animation
             */
             if (paramIndex == 1) anim = incomingByte;
-            if (paramIndex == 2) selectedCmd = 0x00;
+            if (paramIndex == 2) {
+              selectedCmd = 0x00;
+              blinkState = 0;
+              rotatePixel = 0;
+              breatheFactor = 0;
+            }
         }
 
         else if (selectedCmd == HP_CMD_SET_ANIM_SPEED) {
@@ -263,6 +296,26 @@ void receiveEvent(int bytes) {
                 b = _b;
                 selectedCmd = 0x00;  // reset selected cmd
             }
+        }
+
+        else if (selectedCmd == HP_CMD_TIMESYNC) {
+          /*
+          Time synchro commad:
+          Params b0, b1, b2, b3 (32-Bit integer milliseconds since start)
+          */
+          if (paramIndex >= 1 && paramIndex <= 4) _syncTime = (_syncTime << 8 | incomingByte);
+          if (paramIndex == 4) {
+            now = millis();
+
+            timeOffset = _syncTime - now;
+
+            // prevent duplicate execution of past events
+            if (lastBlinkTime > (now+timeOffset)) {
+              lastBlinkTime = (now+timeOffset) - 1;
+            }
+
+            selectedCmd = 0x00;
+          }
         }
 
         paramIndex++;
